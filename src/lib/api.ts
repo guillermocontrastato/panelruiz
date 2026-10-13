@@ -868,7 +868,17 @@ export async function runAsofixQuery(token: string, sql: string, maxResults = 10
     body: { action: 'query', sql, maxResults },
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const context = error.context as Response | undefined;
+    let detail = error.message;
+    if (context) {
+      try {
+        const payload = await context.clone().json() as { error?: string; message?: string };
+        detail = payload.error || payload.message || detail;
+      } catch { /* keep the SDK message */ }
+    }
+    throw new Error(detail);
+  }
   if (data?.error) throw new Error(data.error);
   return data?.result ?? { columns: [], rows: [], totalRows: 0, jobComplete: false };
 }

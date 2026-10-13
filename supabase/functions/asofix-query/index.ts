@@ -289,9 +289,20 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const sa = connData.auth_config;
+    const storedConfig = (connData.auth_config || {}) as Record<string, string>;
+    let sa = storedConfig;
+    if (storedConfig.service_account) {
+      try {
+        const nested = JSON.parse(storedConfig.service_account);
+        sa = { ...nested, ...storedConfig };
+      } catch {
+        return new Response(JSON.stringify({ error: "La credencial service_account guardada no contiene JSON válido." }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
     if (!sa?.type || sa.type !== "service_account" || !sa.private_key || !sa.client_email) {
-      return new Response(JSON.stringify({ error: "La conexión de Asófix no tiene credenciales de Service Account válidas." }), {
+      return new Response(JSON.stringify({ error: "La conexión de Asófix no tiene credenciales de Service Account válidas. Volvé a importar el JSON desde Conexiones API." }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
