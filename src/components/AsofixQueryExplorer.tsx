@@ -3,11 +3,20 @@ import { Database, Loader2, Play, AlertCircle, Table2, ChevronRight, RefreshCw, 
 import { useAuth } from '@/lib/auth-context';
 import { listAsofixDatasets, listAsofixTables, runAsofixQuery, type AsofixQueryResult } from '@/lib/api';
 
-const EXAMPLES = [
-  { label: 'Ver todas las tablas', sql: 'SELECT table_name FROM `asofix-produccion.INFORMATION_SCHEMA.TABLES` ORDER BY table_name' },
-  { label: 'Primeras 50 filas', sql: 'SELECT * FROM `asofix-produccion.__TABLE__` LIMIT 50' },
-  { label: 'Esquema de una tabla', sql: 'SELECT column_name, data_type FROM `asofix-produccion.INFORMATION_SCHEMA.COLUMNS` WHERE table_name = "__TABLE__"' },
-];
+const DEFAULT_DATASET = 'asofix-produccion';
+
+function datasetReference(datasetId: string): string {
+  return `asofix-produccion.${datasetId}`;
+}
+
+function getExamples(datasetId: string) {
+  const reference = datasetReference(datasetId);
+  return [
+    { label: 'Ver todas las tablas', sql: `SELECT table_name FROM \`${reference}.INFORMATION_SCHEMA.TABLES\` ORDER BY table_name` },
+    { label: 'Primeras 50 filas', sql: `SELECT * FROM \`${reference}.__TABLE__\` LIMIT 50` },
+    { label: 'Esquema de una tabla', sql: `SELECT column_name, data_type FROM \`${reference}.INFORMATION_SCHEMA.COLUMNS\` WHERE table_name = "__TABLE__"` },
+  ];
+}
 
 function formatCell(value: unknown): string {
   if (value == null) return '';
@@ -17,7 +26,7 @@ function formatCell(value: unknown): string {
 
 export function AsofixQueryExplorer() {
   const { session } = useAuth();
-  const [sql, setSql] = useState('SELECT table_name FROM `asofix-produccion.INFORMATION_SCHEMA.TABLES` ORDER BY table_name');
+  const [sql, setSql] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AsofixQueryResult | null>(null);
@@ -33,6 +42,10 @@ export function AsofixQueryExplorer() {
     try {
       const ds = await listAsofixDatasets(session.access_token);
       setDatasets(ds);
+      if (ds.length > 0) {
+        setSelectedDataset((current) => current ?? ds[0]);
+        setSql((current) => current || getExamples(ds[0])[0].sql);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al listar datasets');
     }
@@ -118,7 +131,7 @@ export function AsofixQueryExplorer() {
 
           {datasets.length === 0 && !loadingMeta && (
             <p className="text-xs text-gray-400 py-4 text-center">
-              {error ? 'Revisá la conexión de Asófix.' : 'No se encontraron datasets.'}
+              {error ? 'Revisá la conexión de Asófix.' : loadingMeta ? 'Cargando datasets...' : 'No se encontraron datasets.'}
             </p>
           )}
 
@@ -188,7 +201,7 @@ export function AsofixQueryExplorer() {
             />
 
             <div className="flex flex-wrap gap-2 mt-3">
-              {EXAMPLES.map((ex) => (
+              {getExamples(selectedDataset ?? datasets[0] ?? DEFAULT_DATASET).map((ex) => (
                 <button
                   key={ex.label}
                   onClick={() => setSql(ex.sql)}
