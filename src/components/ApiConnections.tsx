@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Trash2, Loader2, X, Plug, Save, Power, Wifi } from 'lucide-react';
+import { ChangeEvent, useEffect, useRef, useState } from 'react';
+import { Plus, Trash2, Loader2, X, Plug, Save, Power, Wifi, Upload, FileJson, AlertTriangle } from 'lucide-react';
 import { fetchApiConnections, createApiConnection, updateApiConnection, deleteApiConnection, testApiConnection } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -27,6 +27,8 @@ export function ApiConnections() {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; message: string } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { session } = useAuth();
 
   useEffect(() => { load(); }, []);
@@ -38,6 +40,32 @@ export function ApiConnections() {
 
   const resetForm = () => {
     setName(''); setBaseUrl(''); setApiKey(''); setAuthType('bearer'); setAuthConfig({}); setEditing(null); setShowForm(false);
+  };
+
+  const handleServiceAccountImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      const parsed = JSON.parse(await file.text()) as Record<string, unknown>;
+      const required = ['project_id', 'private_key', 'client_email'];
+      if (parsed.type !== 'service_account' || required.some((key) => typeof parsed[key] !== 'string' || !parsed[key])) {
+        throw new Error('El archivo no parece una credencial válida de Google Service Account.');
+      }
+
+      setName(`AsOfix - ${String(parsed.project_id)}`);
+      setBaseUrl('https://sheets.googleapis.com/v4/spreadsheets');
+      setAuthType('bearer');
+      setAuthConfig({
+        service_account: JSON.stringify(parsed),
+        project_id: String(parsed.project_id),
+        client_email: String(parsed.client_email),
+      });
+      setImportMessage({ type: 'success', text: 'Credencial importada. Revisá los datos y guardá la conexión.' });
+    } catch (error) {
+      setImportMessage({ type: 'error', text: error instanceof Error ? error.message : 'No se pudo leer el archivo JSON.' });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,6 +147,27 @@ export function ApiConnections() {
             <button onClick={resetForm} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"><X className="w-5 h-5" /></button>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!editing && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                <div className="flex items-start gap-3">
+                  <FileJson className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-orange-900">Configuración automática de AsOfix</p>
+                    <p className="mt-1 text-xs leading-5 text-orange-800">Subí el JSON de Google Service Account y completaremos nombre, URL y credenciales automáticamente.</p>
+                    <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={handleServiceAccountImport} className="sr-only" />
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-700">
+                      <Upload className="h-4 w-4" /> Subir archivo JSON
+                    </button>
+                  </div>
+                </div>
+                {importMessage && (
+                  <div className={`mt-3 flex items-start gap-2 rounded-lg p-3 text-xs ${importMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                    {importMessage.type === 'error' && <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />}
+                    <span>{importMessage.text}</span>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1.5 block">Nombre</label>
