@@ -350,10 +350,19 @@ Deno.serve(async (req: Request) => {
       }
 
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (auth_type === "bearer" && auth_config?.token) {
+      const configuredKey = auth_config?.api_key || body.api_key;
+      const normalizedBaseUrl = String(base_url || "").replace(/\/$/, "");
+      const isOpenAI = /(^|\.)api\.openai\.com$/i.test(new URL(normalizedBaseUrl).hostname);
+      const isGemini = /(^|\.)generativelanguage\.googleapis\.com$/i.test(new URL(normalizedBaseUrl).hostname);
+
+      if (isOpenAI) {
+        headers["Authorization"] = `Bearer ${configuredKey || auth_config?.token || ""}`;
+      } else if (isGemini) {
+        headers["x-goog-api-key"] = configuredKey || auth_config?.token || "";
+      } else if (auth_type === "bearer" && auth_config?.token) {
         headers["Authorization"] = `Bearer ${auth_config.token}`;
-      } else if (auth_type === "api_key" && auth_config?.api_key) {
-        headers[auth_config.header_name || "X-API-Key"] = auth_config.api_key;
+      } else if (auth_type === "api_key" && configuredKey) {
+        headers[auth_config.header_name || "X-API-Key"] = configuredKey;
       } else if (auth_type === "basic" && auth_config?.username) {
         const encoded = btoa(`${auth_config.username}:${auth_config.password || ""}`);
         headers["Authorization"] = `Basic ${encoded}`;
@@ -362,7 +371,13 @@ Deno.serve(async (req: Request) => {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const response = await fetch(base_url, { headers, signal: controller.signal });
+        let testUrl = normalizedBaseUrl;
+        if (isOpenAI) {
+          testUrl = `${new URL(normalizedBaseUrl).origin}/v1/models`;
+        } else if (isGemini) {
+          testUrl = `${new URL(normalizedBaseUrl).origin}/v1beta/models`;
+        }
+        const response = await fetch(testUrl, { headers, signal: controller.signal });
         clearTimeout(timeoutId);
 
         return new Response(JSON.stringify({
