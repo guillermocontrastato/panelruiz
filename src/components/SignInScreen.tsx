@@ -100,7 +100,7 @@ function ResetPasswordForm({ onDone }: { onDone: () => void }) {
 }
 
 export function SignInScreen() {
-  const { signIn, isPasswordRecovery, clearPasswordRecovery } = useAuth();
+  const { signIn, signInAsDemo, isPasswordRecovery, clearPasswordRecovery } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -217,6 +217,23 @@ export function SignInScreen() {
                   Ingresar
                 </button>
               </form>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-400">o explorar</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => signInAsDemo('admin')}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+              >
+                Acceso Demostración (Director General)
+              </button>
 
               <button
                 onClick={() => { setResetMode(true); setError(null); setResetSent(false); }}

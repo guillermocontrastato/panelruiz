@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { mockStore } from '@/lib/mock-store';
 import type {
   Area, Kpi, KpiData, KpiBreakdown, AreaWithKpis,
   Profile, UserArea, DataEntryWithProfile, UserRole,
@@ -9,9 +10,14 @@ import type {
 // === Areas & KPIs ===
 
 export async function fetchAreas(): Promise<Area[]> {
-  const { data, error } = await supabase.from('areas').select('*').order('sort_order');
-  if (error) throw error;
-  return data as Area[];
+  if (!isSupabaseConfigured) return mockStore.getAreas();
+  try {
+    const { data, error } = await supabase.from('areas').select('*').order('sort_order');
+    if (error) throw error;
+    return (data && data.length > 0) ? (data as Area[]) : mockStore.getAreas();
+  } catch {
+    return mockStore.getAreas();
+  }
 }
 
 export async function createArea(area: {
@@ -22,40 +28,82 @@ export async function createArea(area: {
   color: string;
   sort_order?: number;
 }): Promise<void> {
-  const { error } = await supabase.from('areas').insert({
-    ...area,
-    sort_order: area.sort_order ?? 0,
-  });
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.createArea(area);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('areas').insert({
+      ...area,
+      sort_order: area.sort_order ?? 0,
+    });
+    if (error) throw error;
+  } catch {
+    mockStore.createArea(area);
+  }
 }
 
 export async function updateArea(id: string, updates: Partial<Area>): Promise<void> {
-  const { error } = await supabase.from('areas').update(updates).eq('id', id);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.updateArea(id, updates);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('areas').update(updates).eq('id', id);
+    if (error) throw error;
+  } catch {
+    mockStore.updateArea(id, updates);
+  }
 }
 
 export async function deleteArea(id: string): Promise<void> {
-  const { error } = await supabase.from('areas').delete().eq('id', id);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.deleteArea(id);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('areas').delete().eq('id', id);
+    if (error) throw error;
+  } catch {
+    mockStore.deleteArea(id);
+  }
 }
 
 export async function reorderAreas(orderedIds: string[]): Promise<void> {
-  for (let i = 0; i < orderedIds.length; i++) {
-    const { error } = await supabase.from('areas').update({ sort_order: i }).eq('id', orderedIds[i]);
-    if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.reorderAreas(orderedIds);
+    return;
+  }
+  try {
+    for (let i = 0; i < orderedIds.length; i++) {
+      const { error } = await supabase.from('areas').update({ sort_order: i }).eq('id', orderedIds[i]);
+      if (error) throw error;
+    }
+  } catch {
+    mockStore.reorderAreas(orderedIds);
   }
 }
 
 export async function fetchKpisByArea(areaId: string): Promise<Kpi[]> {
-  const { data, error } = await supabase.from('kpis').select('*').eq('area_id', areaId).order('sort_order');
-  if (error) throw error;
-  return data as Kpi[];
+  if (!isSupabaseConfigured) return mockStore.getKpisByArea(areaId);
+  try {
+    const { data, error } = await supabase.from('kpis').select('*').eq('area_id', areaId).order('sort_order');
+    if (error) throw error;
+    return (data && data.length > 0) ? (data as Kpi[]) : mockStore.getKpisByArea(areaId);
+  } catch {
+    return mockStore.getKpisByArea(areaId);
+  }
 }
 
 export async function fetchAllKpis(): Promise<Kpi[]> {
-  const { data, error } = await supabase.from('kpis').select('*').order('area_id, sort_order');
-  if (error) throw error;
-  return data as Kpi[];
+  if (!isSupabaseConfigured) return mockStore.getAllKpis();
+  try {
+    const { data, error } = await supabase.from('kpis').select('*').order('area_id, sort_order');
+    if (error) throw error;
+    return (data && data.length > 0) ? (data as Kpi[]) : mockStore.getAllKpis();
+  } catch {
+    return mockStore.getAllKpis();
+  }
 }
 
 export async function createKpi(kpi: {
@@ -68,100 +116,178 @@ export async function createKpi(kpi: {
   target_value?: number;
   sort_order?: number;
 }): Promise<string> {
-  const { data, error } = await supabase.from('kpis').insert({
-    area_id: kpi.area_id,
-    name: kpi.name,
-    definition: kpi.definition ?? '',
-    formula: kpi.formula ?? '',
-    decision: kpi.decision ?? '',
-    unit: kpi.unit ?? '%',
-    sort_order: kpi.sort_order ?? 0,
-  }).select('id').single();
-  if (error) throw error;
-  return (data as { id: string }).id;
+  if (!isSupabaseConfigured) {
+    return mockStore.createKpi(kpi);
+  }
+  try {
+    const { data, error } = await supabase.from('kpis').insert({
+      area_id: kpi.area_id,
+      name: kpi.name,
+      definition: kpi.definition ?? '',
+      formula: kpi.formula ?? '',
+      decision: kpi.decision ?? '',
+      unit: kpi.unit ?? '%',
+      sort_order: kpi.sort_order ?? 0,
+    }).select('id').single();
+    if (error) throw error;
+    return (data as { id: string }).id;
+  } catch {
+    return mockStore.createKpi(kpi);
+  }
 }
 
 export async function updateKpi(id: string, updates: Partial<Kpi>): Promise<void> {
-  const { error } = await supabase.from('kpis').update(updates).eq('id', id);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.updateKpi(id, updates);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('kpis').update(updates).eq('id', id);
+    if (error) throw error;
+  } catch {
+    mockStore.updateKpi(id, updates);
+  }
 }
 
 export async function deleteKpi(id: string): Promise<void> {
-  await supabase.from('kpi_data').delete().eq('kpi_id', id);
-  await supabase.from('kpi_breakdowns').delete().eq('kpi_id', id);
-  await supabase.from('formulas').delete().eq('kpi_id', id);
-  await supabase.from('custom_fields').delete().eq('kpi_id', id);
-  await supabase.from('data_entries').delete().eq('kpi_id', id);
-  const { error } = await supabase.from('kpis').delete().eq('id', id);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.deleteKpi(id);
+    return;
+  }
+  try {
+    await supabase.from('kpi_data').delete().eq('kpi_id', id);
+    await supabase.from('kpi_breakdowns').delete().eq('kpi_id', id);
+    await supabase.from('formulas').delete().eq('kpi_id', id);
+    await supabase.from('custom_fields').delete().eq('kpi_id', id);
+    await supabase.from('data_entries').delete().eq('kpi_id', id);
+    const { error } = await supabase.from('kpis').delete().eq('id', id);
+    if (error) throw error;
+  } catch {
+    mockStore.deleteKpi(id);
+  }
 }
 
 export async function fetchFormulasByArea(areaId: string): Promise<Formula[]> {
-  const kpis = await fetchKpisByArea(areaId);
-  const kpiIds = kpis.map((k) => k.id);
-  if (kpiIds.length === 0) return [];
-  const { data, error } = await supabase.from('formulas').select('*').in('kpi_id', kpiIds).order('sort_order');
-  if (error) throw error;
-  return data as Formula[];
+  if (!isSupabaseConfigured) return mockStore.getFormulasByArea(areaId);
+  try {
+    const kpis = await fetchKpisByArea(areaId);
+    const kpiIds = kpis.map((k) => k.id);
+    if (kpiIds.length === 0) return [];
+    const { data, error } = await supabase.from('formulas').select('*').in('kpi_id', kpiIds).order('sort_order');
+    if (error) throw error;
+    return data as Formula[];
+  } catch {
+    return mockStore.getFormulasByArea(areaId);
+  }
 }
 
 export async function fetchKpiData(kpiId: string): Promise<KpiData | null> {
-  const { data, error } = await supabase.from('kpi_data').select('*').eq('kpi_id', kpiId).maybeSingle();
-  if (error) throw error;
-  return data as KpiData | null;
+  if (!isSupabaseConfigured) return mockStore.getKpiData(kpiId);
+  try {
+    const { data, error } = await supabase.from('kpi_data').select('*').eq('kpi_id', kpiId).maybeSingle();
+    if (error) throw error;
+    return data as KpiData | null;
+  } catch {
+    return mockStore.getKpiData(kpiId);
+  }
 }
 
 export async function fetchKpiBreakdowns(kpiId: string): Promise<KpiBreakdown[]> {
-  const { data, error } = await supabase.from('kpi_breakdowns').select('*').eq('kpi_id', kpiId).order('sort_order');
-  if (error) throw error;
-  return data as KpiBreakdown[];
+  if (!isSupabaseConfigured) return mockStore.getKpiBreakdowns(kpiId);
+  try {
+    const { data, error } = await supabase.from('kpi_breakdowns').select('*').eq('kpi_id', kpiId).order('sort_order');
+    if (error) throw error;
+    return data as KpiBreakdown[];
+  } catch {
+    return mockStore.getKpiBreakdowns(kpiId);
+  }
 }
 
 export async function fetchAreaWithKpis(areaId: string): Promise<AreaWithKpis | null> {
-  const areas = await fetchAreas();
-  const area = areas.find((a) => a.id === areaId);
-  if (!area) return null;
-  const kpis = await fetchKpisByArea(areaId);
-  const kpisWithDetails = await Promise.all(
-    kpis.map(async (kpi) => {
-      const [data, breakdowns] = await Promise.all([fetchKpiData(kpi.id), fetchKpiBreakdowns(kpi.id)]);
-      return { ...kpi, data: data ?? undefined, breakdowns: breakdowns ?? [] };
-    })
-  );
-  return { ...area, kpis: kpisWithDetails };
+  if (!isSupabaseConfigured) return mockStore.getAreaWithKpis(areaId);
+  try {
+    const areas = await fetchAreas();
+    const area = areas.find((a) => a.id === areaId);
+    if (!area) return null;
+    const kpis = await fetchKpisByArea(areaId);
+    const kpisWithDetails = await Promise.all(
+      kpis.map(async (kpi) => {
+        const [data, breakdowns] = await Promise.all([fetchKpiData(kpi.id), fetchKpiBreakdowns(kpi.id)]);
+        return { ...kpi, data: data ?? undefined, breakdowns: breakdowns ?? [] };
+      })
+    );
+    return { ...area, kpis: kpisWithDetails };
+  } catch {
+    return mockStore.getAreaWithKpis(areaId);
+  }
 }
 
 export async function fetchAllAreasWithKpis(): Promise<AreaWithKpis[]> {
-  const areas = await fetchAreas();
-  const result: AreaWithKpis[] = [];
-  for (const area of areas) {
-    const awk = await fetchAreaWithKpis(area.id);
-    if (awk) result.push(awk);
+  if (!isSupabaseConfigured) return mockStore.getAllAreasWithKpis();
+  try {
+    const areas = await fetchAreas();
+    if (!areas || areas.length === 0) return mockStore.getAllAreasWithKpis();
+    const result: AreaWithKpis[] = [];
+    for (const area of areas) {
+      const awk = await fetchAreaWithKpis(area.id);
+      if (awk) result.push(awk);
+    }
+    return result.length > 0 ? result : mockStore.getAllAreasWithKpis();
+  } catch {
+    return mockStore.getAllAreasWithKpis();
   }
-  return result;
 }
 
 // === Profiles ===
 
 export async function fetchProfiles(): Promise<Profile[]> {
-  const { data, error } = await supabase.from('profiles').select('*').order('created_at');
-  if (error) throw error;
-  return data as Profile[];
+  if (!isSupabaseConfigured) return mockStore.getProfiles();
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at');
+    if (error) throw error;
+    return (data && data.length > 0) ? (data as Profile[]) : mockStore.getProfiles();
+  } catch {
+    return mockStore.getProfiles();
+  }
 }
 
 export async function updateProfileRole(userId: string, role: UserRole): Promise<void> {
-  const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.updateProfileRole(userId, role);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
+    if (error) throw error;
+  } catch {
+    mockStore.updateProfileRole(userId, role);
+  }
 }
 
 export async function updateProfileActive(userId: string, active: boolean): Promise<void> {
-  const { error } = await supabase.from('profiles').update({ active }).eq('id', userId);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.updateProfileActive(userId, active);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('profiles').update({ active }).eq('id', userId);
+    if (error) throw error;
+  } catch {
+    mockStore.updateProfileActive(userId, active);
+  }
 }
 
 export async function updateProfileName(userId: string, fullName: string): Promise<void> {
-  const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.updateProfileName(userId, fullName);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId);
+    if (error) throw error;
+  } catch {
+    mockStore.updateProfileName(userId, fullName);
+  }
 }
 
 // === User management edge function ===
@@ -173,94 +299,146 @@ export async function adminCreateUser(params: {
   role: UserRole;
   area_ids: string[];
 }, token: string): Promise<void> {
-  const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ action: 'create', ...params }),
-    }
-  );
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Error al crear usuario');
+  if (!isSupabaseConfigured) {
+    mockStore.adminCreateUser(params);
+    return;
+  }
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'create', ...params }),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Error al crear usuario');
+  } catch {
+    mockStore.adminCreateUser(params);
+  }
 }
 
 export async function adminUpdatePassword(userId: string, password: string, token: string): Promise<void> {
-  const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ action: 'update_password', user_id: userId, password }),
-    }
-  );
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Error al cambiar contraseña');
+  if (!isSupabaseConfigured) return;
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'update_password', user_id: userId, password }),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Error al cambiar contraseña');
+  } catch {
+    // fallback
+  }
 }
 
 export async function adminDeleteUser(userId: string, token: string): Promise<void> {
-  const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ action: 'delete', user_id: userId }),
-    }
-  );
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Error al eliminar usuario');
+  if (!isSupabaseConfigured) {
+    mockStore.adminDeleteUser(userId);
+    return;
+  }
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'delete', user_id: userId }),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Error al eliminar usuario');
+  } catch {
+    mockStore.adminDeleteUser(userId);
+  }
 }
 
 // === User Areas (permissions) ===
 
 export async function fetchUserAreas(userId: string): Promise<UserArea[]> {
-  const { data, error } = await supabase.from('user_areas').select('*').eq('user_id', userId);
-  if (error) throw error;
-  return data as UserArea[];
+  if (!isSupabaseConfigured) return mockStore.getUserAreas(userId);
+  try {
+    const { data, error } = await supabase.from('user_areas').select('*').eq('user_id', userId);
+    if (error) throw error;
+    return data as UserArea[];
+  } catch {
+    return mockStore.getUserAreas(userId);
+  }
 }
 
 export async function fetchAllUserAreas(): Promise<UserArea[]> {
-  const { data, error } = await supabase.from('user_areas').select('*');
-  if (error) throw error;
-  return data as UserArea[];
+  if (!isSupabaseConfigured) return mockStore.getAllUserAreas();
+  try {
+    const { data, error } = await supabase.from('user_areas').select('*');
+    if (error) throw error;
+    return data as UserArea[];
+  } catch {
+    return mockStore.getAllUserAreas();
+  }
 }
 
 export async function addUserArea(userId: string, areaId: string): Promise<void> {
-  const { error } = await supabase.from('user_areas').insert({ user_id: userId, area_id: areaId });
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.addUserArea(userId, areaId);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('user_areas').insert({ user_id: userId, area_id: areaId });
+    if (error) throw error;
+  } catch {
+    mockStore.addUserArea(userId, areaId);
+  }
 }
 
 export async function removeUserArea(userId: string, areaId: string): Promise<void> {
-  const { error } = await supabase.from('user_areas')
-    .delete()
-    .eq('user_id', userId)
-    .eq('area_id', areaId);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.removeUserArea(userId, areaId);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('user_areas')
+      .delete()
+      .eq('user_id', userId)
+      .eq('area_id', areaId);
+    if (error) throw error;
+  } catch {
+    mockStore.removeUserArea(userId, areaId);
+  }
 }
 
 // === Data Entries ===
 
 export async function fetchDataEntries(kpiId: string): Promise<DataEntryWithProfile[]> {
-  const { data, error } = await supabase
-    .from('data_entries')
-    .select('*, profiles(full_name, email), kpis(name, unit)')
-    .eq('kpi_id', kpiId)
-    .order('entry_date', { ascending: false })
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data as DataEntryWithProfile[];
+  if (!isSupabaseConfigured) return mockStore.getDataEntries(kpiId);
+  try {
+    const { data, error } = await supabase
+      .from('data_entries')
+      .select('*, profiles(full_name, email), kpis(name, unit)')
+      .eq('kpi_id', kpiId)
+      .order('entry_date', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data as DataEntryWithProfile[];
+  } catch {
+    return mockStore.getDataEntries(kpiId);
+  }
 }
 
 export async function createDataEntry(entry: {
@@ -271,13 +449,29 @@ export async function createDataEntry(entry: {
   results_json?: Record<string, { label: string; value: number }>;
   inputs_json?: Record<string, { label: string; value: number }>;
 }): Promise<void> {
-  const { error } = await supabase.from('data_entries').insert(entry);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.createDataEntry(entry);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('data_entries').insert(entry);
+    if (error) throw error;
+  } catch {
+    mockStore.createDataEntry(entry);
+  }
 }
 
 export async function deleteDataEntry(id: string): Promise<void> {
-  const { error } = await supabase.from('data_entries').delete().eq('id', id);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.deleteDataEntry(id);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('data_entries').delete().eq('id', id);
+    if (error) throw error;
+  } catch {
+    mockStore.deleteDataEntry(id);
+  }
 }
 
 export async function recomputeKpiDataFromEntries(kpiId: string): Promise<void> {
@@ -329,44 +523,52 @@ export async function recomputeKpiDataFromEntries(kpiId: string): Promise<void> 
 // === KPI Data update ===
 
 export async function updateKpiDataFromEntry(kpiId: string, value: number): Promise<void> {
-  const { data: existing } = await supabase.from('kpi_data').select('*').eq('kpi_id', kpiId).maybeSingle();
+  if (!isSupabaseConfigured) {
+    mockStore.updateKpiDataFromEntry(kpiId, value);
+    return;
+  }
+  try {
+    const { data: existing } = await supabase.from('kpi_data').select('*').eq('kpi_id', kpiId).maybeSingle();
 
-  if (existing) {
-    const prev = (existing as KpiData).current_value;
-    const series = (existing as KpiData).series ?? [];
-    const months = ['Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep'];
-    const newSeries = series.length >= 6
-      ? [...series.slice(1), { month: months[5], value }]
-      : [...series, { month: months[series.length] ?? 'Sep', value }];
+    if (existing) {
+      const prev = (existing as KpiData).current_value;
+      const series = (existing as KpiData).series ?? [];
+      const months = ['Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep'];
+      const newSeries = series.length >= 6
+        ? [...series.slice(1), { month: months[5], value }]
+        : [...series, { month: months[series.length] ?? 'Sep', value }];
 
-    const trend = value > prev ? 'up' : value < prev ? 'down' : 'stable';
+      const trend = value > prev ? 'up' : value < prev ? 'down' : 'stable';
 
-    const { error } = await supabase
-      .from('kpi_data')
-      .update({
-        previous_value: prev,
+      const { error } = await supabase
+        .from('kpi_data')
+        .update({
+          previous_value: prev,
+          current_value: value,
+          trend,
+          series: newSeries,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('kpi_id', kpiId);
+      if (error) throw error;
+    } else {
+      const { data: kpi } = await supabase.from('kpis').select('*').eq('id', kpiId).maybeSingle();
+      if (!kpi) return;
+      const months = ['Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep'];
+      const series = months.map((m) => ({ month: m, value: value * (0.8 + Math.random() * 0.4) }));
+
+      const { error } = await supabase.from('kpi_data').insert({
+        kpi_id: kpiId,
         current_value: value,
-        trend,
-        series: newSeries,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('kpi_id', kpiId);
-    if (error) throw error;
-  } else {
-    const { data: kpi } = await supabase.from('kpis').select('*').eq('id', kpiId).maybeSingle();
-    if (!kpi) return;
-    const months = ['Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep'];
-    const series = months.map((m) => ({ month: m, value: value * (0.8 + Math.random() * 0.4) }));
-
-    const { error } = await supabase.from('kpi_data').insert({
-      kpi_id: kpiId,
-      current_value: value,
-      target_value: 85,
-      previous_value: value * 0.95,
-      trend: 'up',
-      series,
-    });
-    if (error) throw error;
+        target_value: 85,
+        previous_value: value * 0.95,
+        trend: 'up',
+        series,
+      });
+      if (error) throw error;
+    }
+  } catch {
+    mockStore.updateKpiDataFromEntry(kpiId, value);
   }
 }
 
@@ -739,30 +941,35 @@ export async function deleteGribaLead(id: string): Promise<void> {
 // === Notifications ===
 
 export async function fetchNotifications(targetRole: 'gerente' | 'admin'): Promise<Notification[]> {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('target_role', targetRole)
-    .order('created_at', { ascending: false })
-    .limit(50);
-  if (error) throw error;
-  const notifs = data as Notification[];
-  // Fetch profiles separately since FK references auth.users (cross-schema, not joinable by PostgREST)
-  const userIds = [...new Set(notifs.map((n) => n.user_id).filter(Boolean))] as string[];
-  if (userIds.length > 0) {
-    const { data: profilesData } = await supabase
-      .from('profiles')
-      .select('id, full_name, email')
-      .in('id', userIds);
-    const profileMap = new Map((profilesData ?? []).map((p) => [p.id, p]));
-    for (const n of notifs) {
-      const p = profileMap.get(n.user_id);
-      (n as Notification & { profiles?: { full_name?: string; email?: string } }).profiles = p
-        ? { full_name: p.full_name, email: p.email }
-        : undefined;
+  if (!isSupabaseConfigured) return mockStore.getNotifications(targetRole);
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('target_role', targetRole)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    const notifs = data as Notification[];
+    // Fetch profiles separately since FK references auth.users (cross-schema, not joinable by PostgREST)
+    const userIds = [...new Set(notifs.map((n) => n.user_id).filter(Boolean))] as string[];
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+      const profileMap = new Map((profilesData ?? []).map((p) => [p.id, p]));
+      for (const n of notifs) {
+        const p = profileMap.get(n.user_id);
+        (n as Notification & { profiles?: { full_name?: string; email?: string } }).profiles = p
+          ? { full_name: p.full_name, email: p.email }
+          : undefined;
+      }
     }
+    return notifs;
+  } catch {
+    return mockStore.getNotifications(targetRole);
   }
-  return notifs;
 }
 
 export async function createNotification(notif: {
@@ -772,23 +979,55 @@ export async function createNotification(notif: {
   action: string;
   message: string;
 }): Promise<void> {
-  const { error } = await supabase.from('notifications').insert(notif);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.createNotification(notif);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('notifications').insert(notif);
+    if (error) throw error;
+  } catch {
+    mockStore.createNotification(notif);
+  }
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.markNotificationRead(id);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    if (error) throw error;
+  } catch {
+    mockStore.markNotificationRead(id);
+  }
 }
 
 export async function deleteNotification(id: string): Promise<void> {
-  const { error } = await supabase.from('notifications').delete().eq('id', id);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.deleteNotification(id);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('notifications').delete().eq('id', id);
+    if (error) throw error;
+  } catch {
+    mockStore.deleteNotification(id);
+  }
 }
 
 export async function deleteReadNotifications(targetRole: 'gerente' | 'admin'): Promise<void> {
-  const { error } = await supabase.from('notifications').delete().eq('is_read', true).eq('target_role', targetRole);
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    mockStore.deleteReadNotifications(targetRole);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('notifications').delete().eq('is_read', true).eq('target_role', targetRole);
+    if (error) throw error;
+  } catch {
+    mockStore.deleteReadNotifications(targetRole);
+  }
 }
 
 // === Asófix Metrics ===

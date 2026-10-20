@@ -1,0 +1,5 @@
+{
+  "name": "Ruiz Automotores - Indicadores Gerenciales",
+  "description": "Panel de control gerencial de indicadores (KPIs), métricas operativas y gestión de áreas para Ruiz Automotores.",
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

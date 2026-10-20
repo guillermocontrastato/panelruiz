@@ -1,1 +1,0 @@
-ALTER TABLE api_connections ADD COLUMN IF NOT EXISTS api_key text;

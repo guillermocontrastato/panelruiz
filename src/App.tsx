@@ -12,7 +12,7 @@ import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { SignInScreen } from '@/components/SignInScreen';
 import { AsofixProvider } from '@/lib/asofix-context';
 import { fetchAllAreasWithKpis, fetchAreas, fetchAllUserAreas } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { AreaWithKpis, Area, UserArea } from '@/types';
 import { Loader2, AlertCircle } from 'lucide-react';
 
@@ -163,7 +163,7 @@ function DashboardInner() {
 
   // Realtime: refetch areas when any change happens to the areas table
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !isSupabaseConfigured) return;
 
     const channel = supabase
       .channel('areas-realtime')
